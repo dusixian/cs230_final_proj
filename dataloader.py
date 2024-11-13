@@ -9,9 +9,10 @@ from torch.utils.data import DataLoader
 END_TOKEN = "E"
 PAD_TOKEN = "P"
 MAX_SEQ_LENGTH = 1000 # TODO: @haoyu, check whether this is a good value
-file_names = ["ADAR1_seq.txt", "ADAR2_seq.txt", "ADAR3_seq.txt", "Endogenous_ADAR1_seq.txt"]
+# file_names = ["ADAR1_seq.txt", "ADAR2_seq.txt", "ADAR3_seq.txt", "Endogenous_ADAR1_seq.txt"]
+file_names = ["ADAR1_seq.txt"]
 ADAR_types = ["ADAR1", "ADAR2", "ADAR3", "Endogenous_ADAR1"]
-vocabulary = {'A': 0, 'T': 1, 'C': 2, 'G': 3, 'E': 4, 'P': 5}
+vocabulary = {'A': 0, 'T': 1, 'C': 2, 'G': 3, 'E': 4, 'P': 5, 'other': 6}
 vocab_size = len(vocabulary)
 
 def load_rna_pairs(file_path, ADAR_type):
@@ -29,8 +30,8 @@ def load_rna_pairs(file_path, ADAR_type):
                 "left": {col: left[col] for col in data.columns if col != 'Substrate'},
                 "right": {col: right[col] for col in data.columns if col != 'Substrate'},
             }
-            pair["left"]['Sequence'] += END_TOKEN
-            pair["right"]['Sequence'] += END_TOKEN
+            pair["left"]["Sequence"] = one_hot_encode(pair["left"]["Sequence"]+END_TOKEN, MAX_SEQ_LENGTH)
+            pair["right"]["Sequence"] = one_hot_encode(pair["right"]["Sequence"]+END_TOKEN, MAX_SEQ_LENGTH)
             pair["left"]["ADAR_type"] = ADAR_type
             pair["right"]["ADAR_type"] = ADAR_type
             if random.random() < 0.5:
@@ -41,7 +42,7 @@ def load_rna_pairs(file_path, ADAR_type):
     return pairs
 
 def one_hot_encode(sequence, max_seq_length):
-    indices = [vocabulary[char] for char in sequence]
+    indices = [vocabulary.get(char, 6) for char in sequence]
     # Padding if necessary
     
     if len(indices) < max_seq_length:
@@ -68,8 +69,8 @@ class RnaPairDataset(Dataset):
 
     def __getitem__(self, idx):
         pair = self.rnn_pairs[idx]
-        seq1 = one_hot_encode(pair[0]['Sequence'], self.max_seq_length)
-        seq2 = one_hot_encode(pair[1]['Sequence'], self.max_seq_length)
+        seq1 = pair[0]['Sequence']
+        seq2 = pair[1]['Sequence']
         feature1 = [v for k, v in pair[0].items() if k != 'Sequence']
         feature2 = [v for k, v in pair[1].items() if k != 'Sequence']
         if self.augment:
