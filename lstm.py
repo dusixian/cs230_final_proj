@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 from dataloader import get_dataloaders, MAX_SEQ_LENGTH, vocab_size
 from torch.autograd import Variable
+import time
 
 class RNAPairLSTM(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim, num_layers=1):
@@ -81,9 +82,13 @@ if __name__ == "__main__":
     # weight = torch.tensor([1,1,1,1,1,0.01,1],dtype=torch.float32,requires_grad=False).to(device)
     criterion = nn.CrossEntropyLoss()  # Use CrossEntropyLoss for classification
     optimizer = optim.SGD(model.parameters(), lr=learning_rate)
+    scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda epoch: 0.99 ** epoch)
 
     # Train the model
     train_model(model, train_loader, criterion, optimizer, num_epochs)
+    # save model using dd/mm-hh:mm
+    path = './model/' + time.strftime("%d-%m-%H:%M") + '.pth'
+    torch.save(model.state_dict(), path)
 
     # Evaluate the model
     evaluate_model(model, dev_loader, criterion)
