@@ -9,8 +9,10 @@ from torch.utils.data import DataLoader
 END_TOKEN = "E"
 PAD_TOKEN = "P"
 MAX_SEQ_LENGTH = 101 # TODO: @haoyu, check whether this is a good value
-file_names = ["ADAR1_seq.txt", "ADAR2_seq.txt", "ADAR3_seq.txt", "Endogenous_ADAR1_seq.txt"]
-ADAR_types = ["ADAR1", "ADAR2", "ADAR3", "Endogenous_ADAR1"]
+# file_names = ["ADAR1_seq.txt", "ADAR2_seq.txt", "ADAR3_seq.txt", "Endogenous_ADAR1_seq.txt"]
+# ADAR_types = ["ADAR1", "ADAR2", "ADAR3", "Endogenous_ADAR1"]
+file_names = ["ADAR1_seq.txt"]
+ADAR_types = ["ADAR1"]
 vocabulary = {'A': 0, 'T': 1, 'C': 2, 'G': 3, 'E': 4, 'P': 5, 'other': 6}
 vocab_size = len(vocabulary)
 
