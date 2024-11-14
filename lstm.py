@@ -79,8 +79,8 @@ if __name__ == "__main__":
 
     # Initialize model, criterion and optimizer
     model = RNAPairLSTM(input_dim, hidden_dim, output_dim, num_layers).to(device)
-    # weight = torch.tensor([1,1,1,1,1,0.01,1],dtype=torch.float32,requires_grad=False).to(device)
-    criterion = nn.CrossEntropyLoss()  # Use CrossEntropyLoss for classification
+    weight = torch.tensor([1,1,1,1,1,0.01,1],dtype=torch.float32,requires_grad=False).to(device)
+    criterion = nn.CrossEntropyLoss(weight=weight)  # Use CrossEntropyLoss for classification
     optimizer = optim.SGD(model.parameters(), lr=learning_rate)
     scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda epoch: 0.99 ** epoch)
 
