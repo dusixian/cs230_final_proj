@@ -65,7 +65,7 @@ if __name__ == "__main__":
     input_dim = vocab_size  # One-hot encoded input size
     hidden_dim = 128
     output_dim = vocab_size  # One-hot encoded output size
-    num_layers = 3
+    num_layers = 1
     num_epochs = 100
     learning_rate = 1e-2
     batch_size = 128
@@ -88,7 +88,7 @@ if __name__ == "__main__":
     train_model(model, train_loader, criterion, optimizer, num_epochs)
     # save model using dd/mm-hh:mm
     path = time.strftime("%d-%m-%H:%M") + '.pth'
-    torch.save(model.state_dict(), path)
+    torch.save(model.state_dict(), 'model.pth')
 
     # Evaluate the model
     evaluate_model(model, dev_loader, criterion)
