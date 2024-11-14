@@ -87,7 +87,7 @@ if __name__ == "__main__":
     # Train the model
     train_model(model, train_loader, criterion, optimizer, num_epochs)
     # save model using dd/mm-hh:mm
-    path = './model/' + time.strftime("%d-%m-%H:%M") + '.pth'
+    path = time.strftime("%d-%m-%H:%M") + '.pth'
     torch.save(model.state_dict(), path)
 
     # Evaluate the model
