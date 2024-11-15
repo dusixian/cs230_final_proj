@@ -15,27 +15,19 @@ class RNAPairLSTM(nn.Module):
         self.num_layers = num_layers
 
         self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True, bidirectional=True)
-        self.rnn = nn.GRU(input_dim,hidden_dim,num_layers, batch_first=True)
-        # self.decoder = nn.LSTM(hidden_dim, hidden_dim, num_layers, batch_first=True)
         self.fc = nn.Linear(2*hidden_dim, output_dim)
-        # self.softmax = nn.Softmax(dim=-1)
-        # self.input_fc = nn.Linear(input_dim, hidden_dim)  # Add this line
 
     def forward(self, input): 
         h_0 = Variable(torch.zeros(2*self.num_layers, input.size(0), self.hidden_dim, requires_grad=False).to(device))
         c_0 = Variable(torch.zeros(2*self.num_layers, input.size(0), self.hidden_dim).to(device))
 
         output, (h_out, _) = self.lstm(input, (h_0, c_0))
-        # output, _ = self.rnn(input, h_0)
-
-        # h_out = h_out.view(-1, self.hidden_dim)
         output = self.fc(output)
-        # output = self.softmax(output)
-
+        
         return output
 
 def train_model(model, train_loader, criterion, optimizer, num_epochs=10):
-    # model.train()
+    model.train()
     for epoch in range(num_epochs):
         print(f'Epoch {epoch+1}/{num_epochs}')
         for seq1, seq2 in train_loader:
@@ -65,10 +57,10 @@ if __name__ == "__main__":
     input_dim = vocab_size  # One-hot encoded input size
     hidden_dim = 128
     output_dim = vocab_size  # One-hot encoded output size
-    num_layers = 1
+    num_layers = 2
     num_epochs = 100
     learning_rate = 1e-2
-    batch_size = 128
+    batch_size = 32
 
     # Device configuration
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -81,14 +73,15 @@ if __name__ == "__main__":
     model = RNAPairLSTM(input_dim, hidden_dim, output_dim, num_layers).to(device)
     weight = torch.tensor([1,1,1,1,1,0.01,1],dtype=torch.float32,requires_grad=False).to(device)
     criterion = nn.CrossEntropyLoss(weight=weight)  # Use CrossEntropyLoss for classification
-    optimizer = optim.SGD(model.parameters(), lr=learning_rate)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda epoch: 0.99 ** epoch)
 
     # Train the model
     train_model(model, train_loader, criterion, optimizer, num_epochs)
     # save model using dd/mm-hh:mm
     path = time.strftime("%d-%m-%H:%M") + '.pth'
-    torch.save(model.state_dict(), 'model.pth')
+    # torch.save(model.state_dict(), 'model_test.pth')
+    torch.save(model.state_dict(), 'model_test.pth')
 
     # Evaluate the model
     evaluate_model(model, dev_loader, criterion)
