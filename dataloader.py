@@ -8,15 +8,16 @@ from torch.utils.data import DataLoader
 # constants
 END_TOKEN = "E"
 PAD_TOKEN = "P"
-MAX_SEQ_LENGTH = 101 # TODO: @haoyu, check whether this is a good value
+START_TOKEN = "S"
+MAX_SEQ_LENGTH = 102
 # file_names = ["ADAR1_seq.txt", "ADAR2_seq.txt", "ADAR3_seq.txt", "Endogenous_ADAR1_seq.txt"]
 # ADAR_types = ["ADAR1", "ADAR2", "ADAR3", "Endogenous_ADAR1"]
 file_names = ["ADAR1_seq.txt"]
 ADAR_types = ["ADAR1"]
-vocabulary = {'A': 0, 'T': 1, 'C': 2, 'G': 3, 'E': 4, 'P': 5, 'other': 6}
+vocabulary = {'A': 0, 'T': 1, 'C': 2, 'G': 3, 'E': 4, 'P': 5, 'other': 6, 'S': 7}
 vocab_size = len(vocabulary)
 
-def load_rna_pairs(file_path, ADAR_type):
+def load_rna_pairs(file_path, ADAR_type, one_hot_encode=True, start_token=False):
     data = pd.read_csv(file_path, sep='\t', header=None, 
                        names=['Substrate', 'Arm', 'Chromosome', 'Strand', 'Start', 'End', 
                               'Sequence', 'Location', 'Region', 'RepeatType', 'Source', 'NA'])
@@ -26,15 +27,22 @@ def load_rna_pairs(file_path, ADAR_type):
     for _, group in data.groupby('Substrate'):
         if len(group) == 2:
             left, right = group[group['Arm'] == 'L'].iloc[0], group[group['Arm'] == 'R'].iloc[0]
-            if(len(left['Sequence']) > MAX_SEQ_LENGTH-1 or len(right['Sequence']) > MAX_SEQ_LENGTH-1):
+            if(len(left['Sequence']) > MAX_SEQ_LENGTH-2 or len(right['Sequence']) > MAX_SEQ_LENGTH-2):
                 continue
 
             pair = {
                 "left": {col: left[col] for col in data.columns if col != 'Substrate'},
                 "right": {col: right[col] for col in data.columns if col != 'Substrate'},
             }
-            pair["left"]["Sequence"] = one_hot_encode(pair["left"]["Sequence"]+END_TOKEN, MAX_SEQ_LENGTH)
-            pair["right"]["Sequence"] = one_hot_encode(pair["right"]["Sequence"]+END_TOKEN, MAX_SEQ_LENGTH)
+            if start_token:
+                pair["left"]["Sequence"] = START_TOKEN + pair["left"]["Sequence"]
+                pair["right"]["Sequence"] = START_TOKEN + pair["right"]["Sequence"]
+            pair["left"]["Sequence"] = pair["left"]["Sequence"] + END_TOKEN
+            pair["right"]["Sequence"] = pair["right"]["Sequence"] + END_TOKEN
+            pair["left"]["Sequence"] = one_hot_encoder(pair["left"]["Sequence"], MAX_SEQ_LENGTH, one_hot_encode)
+            pair["right"]["Sequence"] = one_hot_encoder(pair["right"]["Sequence"], MAX_SEQ_LENGTH, one_hot_encode)
+
+            
             pair["left"]["ADAR_type"] = ADAR_type
             pair["right"]["ADAR_type"] = ADAR_type
             if random.random() < 0.5:
@@ -44,7 +52,7 @@ def load_rna_pairs(file_path, ADAR_type):
     
     return pairs
 
-def one_hot_encode(sequence, max_seq_length):
+def one_hot_encoder(sequence, max_seq_length, one_hot_encode=True):
     indices = [vocabulary.get(char, 6) for char in sequence]
     # Padding if necessary
     
@@ -52,16 +60,18 @@ def one_hot_encode(sequence, max_seq_length):
         indices += [vocabulary['P']] * (max_seq_length - len(indices))
     else:
         indices = indices[:max_seq_length]
-
-    one_hot_seq = torch.nn.functional.one_hot(torch.tensor(indices), num_classes=vocab_size)
-    return one_hot_seq.float() 
+    if one_hot_encode:
+        one_hot_seq = torch.nn.functional.one_hot(torch.tensor(indices), num_classes=vocab_size)
+        return one_hot_seq.float() 
+    else:
+        return torch.tensor(indices).int()
 
 class RnaPairDataset(Dataset):
-    def __init__(self, file_names, ADAR_types, max_seq_length=MAX_SEQ_LENGTH, pad_token=PAD_TOKEN):
+    def __init__(self, file_names, ADAR_types, max_seq_length=MAX_SEQ_LENGTH, pad_token=PAD_TOKEN, one_hot_encode=True, start_token=False):
         rnn_pairs = []
         for i in range(len(file_names)):
             name = "./data/" + file_names[i]
-            pairs = load_rna_pairs(name, ADAR_types[i])
+            pairs = load_rna_pairs(name, ADAR_types[i], one_hot_encode=one_hot_encode, start_token=start_token)
             rnn_pairs.extend(pairs)
         self.rnn_pairs = rnn_pairs
         self.max_seq_length = max_seq_length
@@ -88,8 +98,8 @@ class RnaPairDataset(Dataset):
             return (seq1, seq2)
 
 
-def get_dataloaders(file_names=file_names, ADAR_types=ADAR_types, batch_size=32, train_ratio=0.8):
-    dataset = RnaPairDataset(file_names, ADAR_types)
+def get_dataloaders(file_names=file_names, ADAR_types=ADAR_types, batch_size=32, train_ratio=0.8, one_hot_encode=True, start_token=False):
+    dataset = RnaPairDataset(file_names, ADAR_types, one_hot_encode=one_hot_encode, start_token=start_token)
     train_size = int(train_ratio * len(dataset))
     dev_size = int((1-train_ratio)/2 * len(dataset))
     test_size = len(dataset) - train_size - dev_size

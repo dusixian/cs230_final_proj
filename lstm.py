@@ -6,27 +6,29 @@ from torch.autograd import Variable
 import time
 
 class RNAPairLSTM(nn.Module):
-    def __init__(self, input_dim, hidden_dim, output_dim, num_layers=1):
+    def __init__(self, input_dim, hidden_dim, output_dim, num_layers=1, device='cpu'):
         super(RNAPairLSTM, self).__init__()
 
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.output_dim = output_dim
         self.num_layers = num_layers
+        self.device = device
 
         self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True, bidirectional=True)
         self.fc = nn.Linear(2*hidden_dim, output_dim)
 
     def forward(self, input): 
-        h_0 = Variable(torch.zeros(2*self.num_layers, input.size(0), self.hidden_dim, requires_grad=False).to(device))
-        c_0 = Variable(torch.zeros(2*self.num_layers, input.size(0), self.hidden_dim).to(device))
+        h_0 = Variable(torch.zeros(2*self.num_layers, input.size(0), self.hidden_dim, requires_grad=False).to(self.device))
+        c_0 = Variable(torch.zeros(2*self.num_layers, input.size(0), self.hidden_dim).to(self.device))
 
         output, (h_out, _) = self.lstm(input, (h_0, c_0))
         output = self.fc(output)
         
         return output
 
-def train_model(model, train_loader, criterion, optimizer, num_epochs=10):
+
+def train_model(model, train_loader, criterion, optimizer, num_epochs=10, device='cpu'):
     model.train()
     for epoch in range(num_epochs):
         print(f'Epoch {epoch+1}/{num_epochs}')
@@ -58,30 +60,35 @@ if __name__ == "__main__":
     hidden_dim = 128
     output_dim = vocab_size  # One-hot encoded output size
     num_layers = 2
-    num_epochs = 100
+    num_epochs = 30
     learning_rate = 1e-2
     batch_size = 32
 
     # Device configuration
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    if torch.cuda.is_available():
+        device = "cuda"
+    elif torch.backends.mps.is_available():
+        device = "mps"
+    else:
+        device = "cpu"
     print('Using ' + device)
 
     # Load data
     train_loader, dev_loader, test_loader = get_dataloaders(batch_size=batch_size)
 
     # Initialize model, criterion and optimizer
-    model = RNAPairLSTM(input_dim, hidden_dim, output_dim, num_layers).to(device)
-    weight = torch.tensor([1,1,1,1,1,0.01,1],dtype=torch.float32,requires_grad=False).to(device)
+    model = RNAPairLSTM(input_dim, hidden_dim, output_dim, num_layers, device).to(device)
+    weight = torch.tensor([1,1,1,1,10,0.01,1],dtype=torch.float32,requires_grad=False).to(device)
     criterion = nn.CrossEntropyLoss(weight=weight)  # Use CrossEntropyLoss for classification
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-    scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda epoch: 0.99 ** epoch)
+    scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda epoch: 0.9 ** epoch)
 
     # Train the model
-    train_model(model, train_loader, criterion, optimizer, num_epochs)
+    train_model(model, train_loader, criterion, optimizer, num_epochs, device)
     # save model using dd/mm-hh:mm
     path = time.strftime("%d-%m-%H:%M") + '.pth'
     # torch.save(model.state_dict(), 'model_test.pth')
     torch.save(model.state_dict(), 'model_test.pth')
 
     # Evaluate the model
-    evaluate_model(model, dev_loader, criterion)
+    evaluate_model(model, dev_loader, criterion, device)
