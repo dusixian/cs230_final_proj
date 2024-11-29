@@ -10,10 +10,10 @@ END_TOKEN = "E"
 PAD_TOKEN = "P"
 START_TOKEN = "S"
 MAX_SEQ_LENGTH = 102
-# file_names = ["ADAR1_seq.txt", "ADAR2_seq.txt", "ADAR3_seq.txt", "Endogenous_ADAR1_seq.txt"]
-# ADAR_types = ["ADAR1", "ADAR2", "ADAR3", "Endogenous_ADAR1"]
-file_names = ["ADAR1_seq.txt"]
-ADAR_types = ["ADAR1"]
+file_names = ["ADAR1_seq.txt", "ADAR2_seq.txt", "ADAR3_seq.txt", "Endogenous_ADAR1_seq.txt"]
+ADAR_types = ["ADAR1", "ADAR2", "ADAR3", "Endogenous_ADAR1"]
+# file_names = ["ADAR1_seq.txt"]
+# ADAR_types = ["ADAR1"]
 vocabulary = {'A': 0, 'T': 1, 'C': 2, 'G': 3, 'E': 4, 'P': 5, 'other': 6, 'S': 7}
 Location_vocab = {'Intron': 0, 'Intergenic': 1, 'lncRNA': 2, 'UTR': 3, 
                   'CDS': 4, 'tRNA': 5, 'miRNA': 6, 'rRNA': 7, 'other ncRNAs': 8, 'other': 9}
@@ -37,7 +37,10 @@ def load_rna_pairs(file_path, ADAR_type, one_hot_encode=True, start_token=False,
     for _, group in data.groupby('Substrate'):
         if len(group) == 2:
             left, right = group[group['Arm'] == 'L'].iloc[0], group[group['Arm'] == 'R'].iloc[0]
-            if(len(left['Sequence']) > MAX_SEQ_LENGTH-2 or len(right['Sequence']) > MAX_SEQ_LENGTH-2):
+            seq_len = MAX_SEQ_LENGTH-1
+            if start_token:
+                seq_len -= 1
+            if(len(left['Sequence']) > seq_len or len(right['Sequence']) > seq_len):
                 continue
 
             pair = {
@@ -52,8 +55,8 @@ def load_rna_pairs(file_path, ADAR_type, one_hot_encode=True, start_token=False,
                 pair["right"]["Sequence"] = START_TOKEN + pair["right"]["Sequence"]
             pair["left"]["Sequence"] = pair["left"]["Sequence"] + END_TOKEN
             pair["right"]["Sequence"] = pair["right"]["Sequence"] + END_TOKEN
-            pair["left"]["Sequence"] = one_hot_encoder(pair["left"]["Sequence"], MAX_SEQ_LENGTH, one_hot_encode)
-            pair["right"]["Sequence"] = one_hot_encoder(pair["right"]["Sequence"], MAX_SEQ_LENGTH, one_hot_encode)
+            pair["left"]["Sequence"] = one_hot_encoder(pair["left"]["Sequence"], MAX_SEQ_LENGTH, one_hot_encode, start_token)
+            pair["right"]["Sequence"] = one_hot_encoder(pair["right"]["Sequence"], MAX_SEQ_LENGTH, one_hot_encode, start_token)
             
             # process the features
             pair["left"]["ADAR_type"] = ADAR_type
@@ -76,16 +79,18 @@ def load_rna_pairs(file_path, ADAR_type, one_hot_encode=True, start_token=False,
     
     return pairs
 
-def one_hot_encoder(sequence, max_seq_length, one_hot_encode=True):
+def one_hot_encoder(sequence, max_seq_length, one_hot_encode=True, start_token=False):
     indices = [vocabulary.get(char, 6) for char in sequence]
     # Padding if necessary
-    
     if len(indices) < max_seq_length:
         indices += [vocabulary['P']] * (max_seq_length - len(indices))
     else:
         indices = indices[:max_seq_length]
     if one_hot_encode:
-        one_hot_seq = torch.nn.functional.one_hot(torch.tensor(indices), num_classes=vocab_size)
+        if start_token:
+            one_hot_seq = torch.nn.functional.one_hot(torch.tensor(indices), num_classes=vocab_size)
+        else:
+            one_hot_seq = torch.nn.functional.one_hot(torch.tensor(indices), num_classes=vocab_size - 1)
         return one_hot_seq.float() 
     else:
         return torch.tensor(indices).int()
@@ -94,6 +99,7 @@ class RnaPairDataset(Dataset):
     def __init__(self, file_names, ADAR_types, max_seq_length=MAX_SEQ_LENGTH, pad_token=PAD_TOKEN, 
                  one_hot_encode=True, start_token=False, reverse_left=False, get_feature=False):
         rnn_pairs = []
+        print(file_names)
         for i in range(len(file_names)):
             name = "./data/" + file_names[i]
             pairs = load_rna_pairs(name, ADAR_types[i], one_hot_encode=one_hot_encode, start_token=start_token, reverse_left=reverse_left)

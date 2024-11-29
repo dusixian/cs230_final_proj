@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from dataloader import get_dataloaders, MAX_SEQ_LENGTH, vocab_size
+from dataloader import get_dataloaders, MAX_SEQ_LENGTH
 from torch.autograd import Variable
 import time
 
@@ -29,9 +29,20 @@ class RNAPairLSTM(nn.Module):
 
 
 def train_model(model, train_loader, criterion, optimizer, num_epochs=10, device='cpu'):
-    model.train()
+    time_stamp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
+    import os
+    os.makedirs('./model/'+time_stamp)
+
+    best_model = None
+    best_dev_loss = float('inf')
+    best_train_loss = 0
+
+    best_train_model = None
+    min_train_loss = float('inf')
+
     for epoch in range(num_epochs):
         print(f'Epoch {epoch+1}/{num_epochs}')
+        model.train()
         for seq1, seq2 in train_loader:
             seq1, seq2 = seq1.to(device), seq2.to(device)
             outputs = model(seq1)
@@ -43,7 +54,29 @@ def train_model(model, train_loader, criterion, optimizer, num_epochs=10, device
 
         print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}')
 
-def evaluate_model(model, dev_loader, criterion):
+        if loss.item() < min_train_loss:
+            min_train_loss = loss.item()
+            best_train_model = model
+        # Save model
+        if (epoch+1) % 10 == 0:
+            torch.save(model.state_dict(), './model/'+time_stamp+'/lstm_model_'+str(epoch+1)+'.pth')
+            dev_loss = evaluate_model(model, dev_loader, criterion, device)
+            if dev_loss < best_dev_loss:
+                best_dev_loss = dev_loss
+                best_model = model
+                best_train_loss = loss.item()
+
+    # Save best model
+    dev_loss = evaluate_model(best_train_model, dev_loader, criterion, device)
+    if dev_loss < best_dev_loss:
+        best_dev_loss = dev_loss
+        best_model = best_train_model
+        best_train_loss = min_train_loss
+    torch.save(best_model.state_dict(), './model/'+time_stamp+'/lstm_model_best.pth')
+    print(f'Best dev loss: {best_dev_loss:.4f}, training loss: {best_train_loss:.4f}')
+    print('Training finished')
+
+def evaluate_model(model, dev_loader, criterion, device):
     model.eval()
     with torch.no_grad():
         total_loss = 0
@@ -53,14 +86,17 @@ def evaluate_model(model, dev_loader, criterion):
             loss = criterion(outputs.reshape(-1, outputs.size(-1)), seq2.reshape(-1, seq2.size(-1)))
             total_loss += loss.item()
         print(f'Dev Loss: {total_loss / len(dev_loader):.4f}')
+    return total_loss / len(dev_loader)
 
 if __name__ == "__main__":
+    vocab_size = 7
+
     # Hyperparameters
     input_dim = vocab_size  # One-hot encoded input size
     hidden_dim = 128
     output_dim = vocab_size  # One-hot encoded output size
     num_layers = 2
-    num_epochs = 30
+    num_epochs = 150
     learning_rate = 1e-2
     batch_size = 32
 
@@ -78,17 +114,13 @@ if __name__ == "__main__":
 
     # Initialize model, criterion and optimizer
     model = RNAPairLSTM(input_dim, hidden_dim, output_dim, num_layers, device).to(device)
-    weight = torch.tensor([1,1,1,1,10,0.01,1],dtype=torch.float32,requires_grad=False).to(device)
+    weight = torch.tensor([1,1,1,1,2,0.01,1],dtype=torch.float32,requires_grad=False).to(device)
     criterion = nn.CrossEntropyLoss(weight=weight)  # Use CrossEntropyLoss for classification
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda epoch: 0.9 ** epoch)
 
     # Train the model
     train_model(model, train_loader, criterion, optimizer, num_epochs, device)
-    # save model using dd/mm-hh:mm
-    path = time.strftime("%d-%m-%H:%M") + '.pth'
-    # torch.save(model.state_dict(), 'model_test.pth')
-    torch.save(model.state_dict(), 'model_test.pth')
 
-    # Evaluate the model
-    evaluate_model(model, dev_loader, criterion, device)
+    # # Evaluate the model
+    # evaluate_model(model, dev_loader, criterion, device)
