@@ -138,6 +138,7 @@ class RnaPairDataset(Dataset):
 
 def get_dataloaders(file_names=file_names, ADAR_types=ADAR_types, batch_size=32, train_ratio=0.8, 
                     one_hot_encode=True, start_token=False, reverse_left=False, get_feature=False):
+    torch.manual_seed(42)
     dataset = RnaPairDataset(file_names, ADAR_types, 
                              one_hot_encode=one_hot_encode, start_token=start_token, 
                              reverse_left=reverse_left, get_feature=get_feature)
