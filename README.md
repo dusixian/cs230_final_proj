@@ -18,4 +18,5 @@ Folders:
 - data_extraction: codes used to get the ADAR dataset
 - data_preprocessing: divide and shuffle the dataset, tokenize the sequence and features
 - model: saved model that are optimized
+- analysis: dataset and result analysis
 - other architectures: other model that are tested but not included in the report
