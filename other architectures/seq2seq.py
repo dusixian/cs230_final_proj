@@ -153,7 +153,7 @@ def evaluate_model(model, dev_loader, criterion):
         total_loss = 0
         for seq1, seq2 in dev_loader:
             seq1, seq2 = seq1.to(device), seq2.to(device)
-            outputs = model(seq1)
+            outputs = model(seq1,seq2)
             loss = criterion(outputs.reshape(-1, outputs.size(-1)), seq2.reshape(-1, seq2.size(-1)))
             total_loss += loss.item()
         print(f'Dev Loss: {total_loss / len(dev_loader):.4f}')

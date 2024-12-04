@@ -10,10 +10,10 @@ END_TOKEN = "E"
 PAD_TOKEN = "P"
 START_TOKEN = "S"
 MAX_SEQ_LENGTH = 102
-file_names = ["ADAR1_seq.txt", "ADAR2_seq.txt", "ADAR3_seq.txt", "Endogenous_ADAR1_seq.txt"]
-ADAR_types = ["ADAR1", "ADAR2", "ADAR3", "Endogenous_ADAR1"]
-# file_names = ["ADAR1_seq.txt"]
-# ADAR_types = ["ADAR1"]
+# file_names = ["ADAR1_seq.txt", "ADAR2_seq.txt", "ADAR3_seq.txt", "Endogenous_ADAR1_seq.txt"]
+# ADAR_types = ["ADAR1", "ADAR2", "ADAR3", "Endogenous_ADAR1"]
+file_names = ["ADAR1_seq.txt"]
+ADAR_types = ["ADAR1"]
 vocabulary = {'A': 0, 'T': 1, 'C': 2, 'G': 3, 'E': 4, 'P': 5, 'other': 6, 'S': 7}
 Location_vocab = {'Intron': 0, 'Intergenic': 1, 'lncRNA': 2, 'UTR': 3, 
                   'CDS': 4, 'tRNA': 5, 'miRNA': 6, 'rRNA': 7, 'other ncRNAs': 8, 'other': 9}
