@@ -1,6 +1,0 @@
-2024-11-28-21-53-43
-transformer v3 model
-default param
-dev loss: 1.04
-
-
